@@ -15,6 +15,8 @@
 	</head>
 	<body>
 		<?php
+        CONST DEFAULT_REDIRECT = "https://sergiocabral.com/";
+
 		ini_set('display_errors', 1);
 		ini_set('display_startup_errors', 1);
 		error_reporting(E_ALL);
@@ -23,23 +25,19 @@
 		{
 		    $error = error_get_last();
 			if ($error) {
-				header("location:https://sergiocabral.com/");
+				header("location:" . DEFAULT_REDIRECT);
 			}
 		}
 
 		set_error_handler("error_handler");
 		register_shutdown_function("error_handler");
 
-		$works = false;
-
-		$shortcut = $_SERVER['QUERY_STRING'];
-
 		$environment = json_decode(file_get_contents("environment.json"));
 
 		$mysqlServer = "{$environment->database->server}:{$environment->database->port}";
-		$mysqlUsername = $environment->database->username;
-		$mysqlPassword = $environment->database->password;
-		$mysqlDatabase = $environment->database->database;
+		$mysqlUsername = "{$environment->database->username}";
+		$mysqlPassword = "{$environment->database->password}";
+		$mysqlDatabase = "{$environment->database->database}";
 
 		$mysqli = new mysqli($mysqlServer, $mysqlUsername, $mysqlPassword, $mysqlDatabase);
 
@@ -50,6 +48,7 @@
         if ($isNewDatabase) {
             $stmt = $mysqli->prepare( "CREATE TABLE `shortener` (
  `id` int(11) NOT NULL AUTO_INCREMENT,
+ `domains` text NOT NULL,
  `shortcut` text NOT NULL,
  `destination` text NOT NULL,
  `counter` int(11) DEFAULT NULL,
@@ -74,15 +73,49 @@ CREATE TABLE `access` (
             $stmt->close();
         }
 
-		$stmt = $mysqli->prepare("SELECT `id`, `destination`, `counter`, `lastAccess` FROM `shortener` WHERE `shortcut` = ?");
-		$stmt->bind_param('s', $shortcut);
+        $domain = "{$_SERVER['SERVER_NAME']}";
+        $shortcut = "{$_SERVER['QUERY_STRING']}";
+
+        $domainLike = "%[$domain]%";
+
+        $stmt = $mysqli->prepare("
+  SELECT `id`, 
+         `destination`
+    FROM `shortener`
+   WHERE `shortcut` = ?
+     AND (`domains` = '*' OR `domains` = ? OR `domains` LIKE ?)
+ORDER BY `domains` DESC");
+        $stmt->bind_param('sss', $shortcut, $domain, $domainLike);
 		$stmt->execute();
-		$stmt->bind_result($shortenerId, $destination, $counter, $lastAccess);
+		$stmt->bind_result($shortenerId, $destination);
 		$fetch = $stmt->fetch();
 		$stmt->close();
 
+        if (!$fetch || !trim($destination)) {
+            $stmt = $mysqli->prepare("
+  SELECT `id`, 
+         `destination`
+    FROM `shortener`
+   WHERE `shortcut` = ''
+     AND (`domains` = '*' OR `domains` = ? OR `domains` LIKE ?)
+ORDER BY `domains` DESC");
+            $stmt->bind_param('ss', $domain, $domainLike);
+            $stmt->execute();
+            $stmt->bind_result($shortenerId, $destination);
+            $fetch = $stmt->fetch();
+            $stmt->close();
+        }
+
 		if ($fetch && trim($destination)) {
-			$stmt = $mysqli->prepare("INSERT INTO `access` (`shortenerId`, `httpReferer`, `remoteHost`, `remoteAddr`, `httpUserAgent`) VALUES (?, ?, ?, ?, ?)");
+			$stmt = $mysqli->prepare("
+INSERT
+  INTO `access` (
+       `shortenerId`,
+       `httpReferer`,
+       `remoteHost`,
+       `remoteAddr`,
+       `httpUserAgent`
+   ) VALUES (?, ?, ?, ?, ?)");
 			$stmt->bind_param('dssss', $shortenerId, $httpReferer, $remoteHost, $remoteAddr, $httpUserAgent);
 			$httpReferer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : null;
 			$remoteHost = $_SERVER['REMOTE_HOST'];
@@ -91,19 +124,21 @@ CREATE TABLE `access` (
 			$stmt->execute();
 			$stmt->close();
 
-			$stmt = $mysqli->prepare("UPDATE `shortener` SET `counter` = COALESCE(`counter`, 0) + 1, `lastAccess` = NOW() WHERE `shortcut` = ?");
+			$stmt = $mysqli->prepare("
+UPDATE `shortener`
+   SET `counter` = COALESCE(`counter`, 0) + 1,
+       `lastAccess` = NOW()
+ WHERE `shortcut` = ?");
 			$stmt->bind_param('s', $shortcut);
 			$stmt->execute();
 			$stmt->close();
-
-			header("location:" . $destination);
-			$works = true;
-		}
+		} ELSE {
+            $destination = DEFAULT_REDIRECT;
+        }
 		
 		$mysqli->close();
 
-		if (!$works) throw new Exception(-1);
-
+        header("location:" . $destination);
 		?>
 	</body>
 </html>
