@@ -16,7 +16,7 @@
 	</head>
 	<body>
 		<?php
-        CONST DEFAULT_REDIRECT = "https://sergiocabral.com/";
+        require "environment.php";
 
 		ini_set('display_errors', 1);
 		ini_set('display_startup_errors', 1);
@@ -33,12 +33,10 @@
 		set_error_handler("error_handler");
 		register_shutdown_function("error_handler");
 
-		$environment = json_decode(file_get_contents("environment.json"));
-
-		$mysqlServer = "{$environment->database->server}:{$environment->database->port}";
-		$mysqlUsername = "{$environment->database->username}";
-		$mysqlPassword = "{$environment->database->password}";
-		$mysqlDatabase = "{$environment->database->database}";
+		$mysqlServer = DATABASE_SERVER . ":" . DATABASE_PORT;
+		$mysqlUsername = DATABASE_USERNAME;
+		$mysqlPassword = DATABASE_PASSWORD;
+		$mysqlDatabase = DATABASE_NAME;
 
 		$mysqli = new mysqli($mysqlServer, $mysqlUsername, $mysqlPassword, $mysqlDatabase);
 
