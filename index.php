@@ -34,10 +34,12 @@
 
 		$shortcut = $_SERVER['QUERY_STRING'];
 
-		$mysqlServer = "server";
-		$mysqlUsername = "username";
-		$mysqlPassword = "password";
-		$mysqlDatabase = "database";
+		$environment = json_decode(file_get_contents("environment.json"));
+
+		$mysqlServer = "{$environment->database->server}:{$environment->database->port}";
+		$mysqlUsername = $environment->database->username;
+		$mysqlPassword = $environment->database->password;
+		$mysqlDatabase = $environment->database->database;
 
 		$mysqli = new mysqli($mysqlServer, $mysqlUsername, $mysqlPassword, $mysqlDatabase);
 
