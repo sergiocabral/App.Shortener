@@ -85,7 +85,7 @@ CREATE TABLE `access` (
          `destination`
     FROM `shortener`
    WHERE `shortcut` = ?
-     AND (`domains` = '*' OR `domains` = ? OR `domains` LIKE ?)
+     AND (`domains` = '' OR `domains` = ? OR `domains` LIKE ?)
 ORDER BY `domains` DESC");
         $stmt->bind_param('sss', $shortcut, $domain, $domainLike);
 		$stmt->execute();
@@ -99,7 +99,7 @@ ORDER BY `domains` DESC");
          `destination`
     FROM `shortener`
    WHERE `shortcut` = ''
-     AND (`domains` = '*' OR `domains` = ? OR `domains` LIKE ?)
+     AND (`domains` = '' OR `domains` = ? OR `domains` LIKE ?)
 ORDER BY `domains` DESC");
             $stmt->bind_param('ss', $domain, $domainLike);
             $stmt->execute();
