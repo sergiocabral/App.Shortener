@@ -1,8 +1,9 @@
 <html>
 	<head>
 		<title>Redirecting...</title>
-        <meta charset="UTF-8">
-		<style>
+        <meta charset="UTF-8" />
+        <meta name="version" content="<?php trim(file_get_contents("VERSION")) ?>" />
+        <style>
 			html {
 				color: white;
 				background-color: #231F20;
