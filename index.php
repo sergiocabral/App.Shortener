@@ -48,6 +48,7 @@
         if ($isNewDatabase) {
             $stmt = $mysqli->prepare( "CREATE TABLE `shortener` (
  `id` int(11) NOT NULL AUTO_INCREMENT,
+ `enabled` int(1) NOT NULL DEFAULT 1,
  `domains` text NOT NULL,
  `shortcut` text NOT NULL,
  `destination` text NOT NULL,
@@ -84,7 +85,8 @@ CREATE TABLE `access` (
   SELECT `id`, 
          `destination`
     FROM `shortener`
-   WHERE `shortcut` = ?
+   WHERE `enabled` <> 0
+     AND `shortcut` = ?
      AND (`domains` = '' OR `domains` = ? OR `domains` LIKE ?)
 ORDER BY `domains` DESC");
         $stmt->bind_param('sss', $shortcut, $domain, $domainLike);
@@ -98,7 +100,8 @@ ORDER BY `domains` DESC");
   SELECT `id`, 
          `destination`
     FROM `shortener`
-   WHERE `shortcut` = ''
+   WHERE `enabled` <> 0
+     AND `shortcut` = ''
      AND (`domains` = '' OR `domains` = ? OR `domains` LIKE ?)
 ORDER BY `domains` DESC");
             $stmt->bind_param('ss', $domain, $domainLike);
