@@ -61,8 +61,10 @@
             $stmt = $mysqli->prepare( "
 CREATE TABLE `access` (
  `id` int(11) NOT NULL AUTO_INCREMENT,
- `shortenerId` int(11) NOT NULL,
+ `shortenerId` int(11) DEFAULT NULL,
  `timestamp` datetime NOT NULL DEFAULT current_timestamp(),
+ `url` text NOT NULL,
+ `destination` text NOT NULL,
  `httpReferer` text DEFAULT NULL,
  `remoteHost` text DEFAULT NULL,
  `remoteAddr` text DEFAULT NULL,
@@ -91,7 +93,7 @@ ORDER BY `domains` DESC");
 		$fetch = $stmt->fetch();
 		$stmt->close();
 
-        if (!$fetch || !trim($destination)) {
+        if (!$shortenerId) {
             $stmt = $mysqli->prepare("
   SELECT `id`, 
          `destination`
@@ -106,37 +108,44 @@ ORDER BY `domains` DESC");
             $stmt->close();
         }
 
-		if ($fetch && trim($destination)) {
-			$stmt = $mysqli->prepare("
+		if ($shortenerId) {
+            $stmt = $mysqli->prepare("
+UPDATE `shortener`
+   SET `counter` = COALESCE(`counter`, 0) + 1,
+       `lastAccess` = NOW()
+ WHERE `id` = ?");
+            $stmt->bind_param('d', $shortenerId);
+            $stmt->execute();
+            $stmt->close();
+		}
+
+		if (!$destination) {
+            $destination = DEFAULT_REDIRECT;
+        }
+
+        $stmt = $mysqli->prepare("
 INSERT
   INTO `access` (
        `shortenerId`,
+       `url`,
+       `destination`,
        `httpReferer`,
        `remoteHost`,
        `remoteAddr`,
        `httpUserAgent`
-   ) VALUES (?, ?, ?, ?, ?)");
-			$stmt->bind_param('dssss', $shortenerId, $httpReferer, $remoteHost, $remoteAddr, $httpUserAgent);
-			$httpReferer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : null;
-			$remoteHost = $_SERVER['REMOTE_HOST'];
-			$remoteAddr = $_SERVER['REMOTE_ADDR'];
-			$httpUserAgent = $_SERVER['HTTP_USER_AGENT'];
-			$stmt->execute();
-			$stmt->close();
+   ) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param('dssssss', $shortenerId, $url, $destination, $httpReferer, $remoteHost, $remoteAddr, $httpUserAgent);
+        $httpReferer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : null;
+        $isHttps = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on';
+        $serverPort = (!$isHttps && $_SERVER['SERVER_PORT'] == 80) || ($isHttps && $_SERVER['SERVER_PORT'] == 443) ? "" : ":{$_SERVER['SERVER_PORT']}";
+        $url = ($isHttps ? "https" : "http") . "://{$_SERVER['HTTP_HOST']}{$serverPort}{$_SERVER['REQUEST_URI']}";
+        $remoteHost = $_SERVER['REMOTE_HOST'];
+        $remoteAddr = $_SERVER['REMOTE_ADDR'];
+        $httpUserAgent = $_SERVER['HTTP_USER_AGENT'];
+        $stmt->execute();
+        $stmt->close();
 
-			$stmt = $mysqli->prepare("
-UPDATE `shortener`
-   SET `counter` = COALESCE(`counter`, 0) + 1,
-       `lastAccess` = NOW()
- WHERE `shortcut` = ?");
-			$stmt->bind_param('s', $shortcut);
-			$stmt->execute();
-			$stmt->close();
-		} ELSE {
-            $destination = DEFAULT_REDIRECT;
-        }
-		
-		$mysqli->close();
+        $mysqli->close();
 
         header("location:" . $destination);
 		?>
