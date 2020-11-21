@@ -1,8 +1,7 @@
 <html>
 	<head>
-		<title>
-			Redirecting...
-		</title>
+		<title>Redirecting...</title>
+        <meta charset="UTF-8">
 		<style>
 			html {
 				color: white;
@@ -41,6 +40,37 @@
 		$mysqlDatabase = "database";
 
 		$mysqli = new mysqli($mysqlServer, $mysqlUsername, $mysqlPassword, $mysqlDatabase);
+
+        $stmt = $mysqli->prepare( "DESCRIBE `shortener`");
+        $isNewDatabase = !$stmt->execute();
+        $stmt->close();
+
+        if ($isNewDatabase) {
+            $stmt = $mysqli->prepare( "CREATE TABLE `shortener` (
+ `id` int(11) NOT NULL AUTO_INCREMENT,
+ `shortcut` text NOT NULL,
+ `destination` text NOT NULL,
+ `counter` int(11) DEFAULT NULL,
+ `lastAccess` datetime DEFAULT NULL,
+ PRIMARY KEY (`id`)
+)");
+            $stmt->execute();
+            $stmt->close();
+
+            $stmt = $mysqli->prepare( "
+CREATE TABLE `access` (
+ `id` int(11) NOT NULL AUTO_INCREMENT,
+ `shortenerId` int(11) NOT NULL,
+ `timestamp` datetime NOT NULL DEFAULT current_timestamp(),
+ `httpReferer` text DEFAULT NULL,
+ `remoteHost` text DEFAULT NULL,
+ `remoteAddr` text DEFAULT NULL,
+ `httpUserAgent` text DEFAULT NULL,
+ PRIMARY KEY (`id`)
+)");
+            $stmt->execute();
+            $stmt->close();
+        }
 
 		$stmt = $mysqli->prepare("SELECT `id`, `destination`, `counter`, `lastAccess` FROM `shortener` WHERE `shortcut` = ?");
 		$stmt->bind_param('s', $shortcut);
