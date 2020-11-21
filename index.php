@@ -2,7 +2,7 @@
 	<head>
 		<title>Redirecting...</title>
         <meta charset="UTF-8" />
-        <meta name="version" content="<?php trim(file_get_contents("VERSION")) ?>" />
+        <meta name="version" content="<?php echo trim(file_get_contents('VERSION')) ?>" />
         <style>
 			html {
 				color: white;
